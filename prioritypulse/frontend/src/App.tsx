@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "./api";
 import type { Boundary, Mode, Network, RunRequestBody, RunResponse, Scenario } from "./types";
 import { MODES } from "./types";
-import { clamp, fmtSec, MODE_LABEL } from "./lib/format";
+import { clamp, fmtSec, MODE_LABEL, MODE_SHORT } from "./lib/format";
 import { usePlayback, SPEEDS } from "./lib/playback";
 import { Icon, Logo } from "./components/Icon";
 import { Sidebar } from "./components/Sidebar";
@@ -259,9 +259,10 @@ export default function App() {
       <header className="topbar" role="banner">
         <div className="brand">
           <Logo />
-          <div>PriorityPulse<small>Predictive emergency-vehicle signal priority</small></div>
+          <h1>PriorityPulse<small>Predictive emergency-vehicle signal priority</small></h1>
         </div>
         <div className="spacer" />
+        <a className="btn only-narrow" href="#setup">⚙ Setup</a>
         <div className="seg" role="group" aria-label="Detail level">
           <button aria-pressed={view === "community"} onClick={() => setView("community")} title="Plain language, maps and safety alerts">Community view</button>
           <button aria-pressed={view === "engineer"} onClick={() => setView("engineer")} title="Queues, constraints, controller cost and network state">Engineer view</button>
@@ -278,7 +279,7 @@ export default function App() {
           customActive={Boolean(custom)} customName={customName} onOpenLocation={() => setShowPicker(true)} onClearCustom={() => { setCustom(null); setMapStyle("schematic"); applyScenario("rush_hour_ambulance"); }}
           scenario={scenario} overrides={overrides} onOverrides={setOverrides} seed={seed} onSeed={setSeed}
           dispatch={dispatch} onDispatch={setDispatch} boundaries={boundaries}
-          loading={loading} onRun={() => { setPedCalls([]); void execute({ calls: [] }); }} error={error}
+          loading={loading} onRun={() => { setPedCalls([]); void execute({ calls: [] }).then(() => { if (window.innerWidth <= 1050) document.getElementById("main")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth" }); }); }} error={error}
         />
 
         <main id="main" className="content" tabIndex={-1}>
@@ -304,7 +305,9 @@ export default function App() {
                   <h2 id="map-h">{run.scenario.name}</h2>
                   <div className="seg" role="tablist" aria-label="Control mode">
                     {MODES.map((m, i) => (
-                      <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)} title={`Press ${i + 1}`}>{MODE_LABEL[m]}</button>
+                      <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)} title={`Press ${i + 1}`} aria-label={MODE_LABEL[m]}>
+                        <span className="full" aria-hidden>{MODE_LABEL[m]}</span><span className="short" aria-hidden>{MODE_SHORT[m]}</span>
+                      </button>
                     ))}
                   </div>
                   {net.source === "map" && (

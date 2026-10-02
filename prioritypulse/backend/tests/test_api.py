@@ -173,3 +173,22 @@ def test_run_store_is_bounded():
     for i in range(5):
         store.put({"run_id": str(i)})
     assert store.get("0") is None and store.get("1") is None and store.get("4") is not None
+
+
+def test_library_scenario_on_a_smaller_custom_network_degrades_gracefully():
+    """A scenario's scheduled bus is skipped (not a crash) when its route is not on the network."""
+    pts = [{"lat": 42.0, "lon": -87.0}]
+    r = client.post("/api/runs", json={
+        "scenario_id": "school_dismissal", "seed": 1, "duration": 150, "include_frames": False, "modes": ["fixed"],
+        "network": {"type": "points", "points": pts}, "dispatch": {"origin": "B_W", "destination": "B_E", "t": 40},
+    })
+    assert r.status_code == 200
+    assert any(e["kind"] == "bus_skipped" for e in r.json()["runs"]["fixed"]["events"])
+
+
+def test_dispatch_to_a_station_that_does_not_exist_names_the_valid_ones():
+    r = client.post("/api/runs", json={"network": {"type": "demo", "n": 1}, "dispatch": {"origin": "B_SR3", "destination": "B_E"}})
+    assert r.status_code == 422
+    assert "B_SR3" in r.json()["detail"] and "Valid stations" in r.json()["detail"]
+    r = client.post("/api/runs", json={"scenario_id": "fire_station_dispatch", "network": {"type": "demo", "n": 1}})
+    assert r.status_code == 422 and "default dispatch" in r.json()["detail"]

@@ -128,15 +128,17 @@ export function DecisionPanel({ run, mode, t, view }: Props) {
         ) : (
           <p className="muted">No decisions yet. Press play — each signal change is explained here as it happens.</p>
         )}
-        <div className="feed" role="list" aria-label={`Decision history, ${MODE_LABEL[mode]}`}>
+        <ul className="feed" aria-label={`Decision history, ${MODE_LABEL[mode]}`}>
           {list.map(({ d, i }) => (
-            <button key={i} className={KIND_CLASS[d.kind]} role="listitem" aria-current={i === shownIdx ? "true" : undefined} onClick={() => setPinned(i === latestIdx && pinned === null ? null : i)}>
-              <span className="tm">{mmss(d.t)}</span>
-              <span><b className="small">{d.node_name ?? d.node}</b> <span className="muted small">· {KIND_LABEL[d.kind]}</span><br />{d.title}</span>
-            </button>
+            <li key={i}>
+              <button className={KIND_CLASS[d.kind]} aria-current={i === shownIdx ? "true" : undefined} onClick={() => setPinned(i === latestIdx && pinned === null ? null : i)}>
+                <span className="tm">{mmss(d.t)}</span>
+                <span><b className="small">{d.node_name ?? d.node}</b> <span className="muted small">· {KIND_LABEL[d.kind]}</span><br />{d.title}</span>
+              </button>
+            </li>
           ))}
-          {list.length === 0 && <p className="muted small">Nothing matches this filter yet.</p>}
-        </div>
+          {list.length === 0 && <li className="muted small">Nothing matches this filter yet.</li>}
+        </ul>
       </div>
     </section>
   );

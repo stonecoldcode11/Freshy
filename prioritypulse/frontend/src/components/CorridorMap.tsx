@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import type { Frame, ModeRun, NetLink, Network, PreState, SigSnap } from "../types";
 import { PRE_BADGE } from "../lib/format";
 import { HEAT_BANDS, heatBand } from "../lib/heat";
@@ -380,7 +380,22 @@ function EngineerOverlay({ net, frame, linkMoves }: { net: Network; frame: Frame
 }
 
 /* ---------------------------------------------------------------- component */
+/** True on phone-width screens, where the map keeps a readable minimum size and scrolls sideways. */
+function useNarrow(): boolean {
+  const q = "(max-width: 700px)";
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia?.(q);
+    if (!m) return;
+    const on = () => setNarrow(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
+
 function CorridorMapBase({ net, run, t, view, compact = false, title }: Props) {
+  const narrow = useNarrow();
   const frames = run.frames;
   const idx = Math.min(frames.length - 1, Math.max(0, Math.floor(t)));
   const frame = frames[idx];
@@ -401,7 +416,7 @@ function CorridorMapBase({ net, run, t, view, compact = false, title }: Props) {
     .map((nd, i) => `${nd.name}: ${net.phase_names[frame.sig[i].p]} ${frame.sig[i].s === "G" ? "green" : frame.sig[i].s === "Y" ? "yellow" : "all red"}`)
     .join("; ");
   return (
-    <div className="map-wrap">
+    <div className={`map-wrap${narrow ? " scroll-x" : ""}`} {...(narrow ? { tabIndex: 0, role: "region", "aria-label": `${title ?? "Corridor"} map (scroll sideways to pan)` } : {})}>
       <svg
         className="map-svg"
         viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}

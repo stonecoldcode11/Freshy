@@ -1,4 +1,4 @@
-.PHONY: install backend frontend build serve test bench clean
+.PHONY: install backend frontend build serve test bench fuzz clean
 
 PY := backend/.venv/bin/python
 
@@ -25,6 +25,9 @@ test:
 
 bench:
 	cd backend && .venv/bin/python scripts/benchmark.py --seeds 1-10
+
+fuzz:
+	cd backend && .venv/bin/python scripts/fuzz.py 1 80
 
 clean:
 	rm -rf frontend/dist frontend/node_modules backend/.venv backend/.pytest_cache

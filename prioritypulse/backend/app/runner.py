@@ -64,7 +64,10 @@ def resolve_scenario(req: RunRequest) -> Scenario:
 def resolve_dispatch(sc: Scenario, req: RunRequest, net: Network) -> DispatchSpec | None:
     d = req.dispatch
     if d is None:
-        return sc.dispatch
+        spec = sc.dispatch
+        if spec is not None:
+            _check_stations(net, spec.origin, spec.destination, "the scenario's default dispatch")
+        return spec
     if d.get("enabled") is False:
         return None
     base = sc.dispatch
@@ -75,7 +78,15 @@ def resolve_dispatch(sc: Scenario, req: RunRequest, net: Network) -> DispatchSpe
         priority=d.get("priority") or (base.priority if base else "critical"),
         t=float(d.get("t", base.t if base else 60.0)),
     )
+    _check_stations(net, spec.origin, spec.destination, "the dispatch")
     return spec
+
+
+def _check_stations(net: Network, origin: str, destination: str, what: str) -> None:
+    valid = [b.id for b in net.boundaries]
+    for role, bid in (("origin", origin), ("destination", destination)):
+        if bid not in valid:
+            raise ValueError(f"{what} uses {role} {bid!r}, which is not on this network. Valid stations: {', '.join(valid)}")
 
 
 def build_config(req: RunRequest, sc: Scenario, mode: str) -> SimConfig:

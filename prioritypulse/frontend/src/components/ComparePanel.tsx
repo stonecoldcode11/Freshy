@@ -46,7 +46,7 @@ export function ResultsCard({ run, view }: { run: RunResponse; view: ViewMode })
           ))}
         </div>
         {view === "engineer" ? (
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ overflowX: "auto" }} tabIndex={0} role="region" aria-label="All metrics by mode (scrollable)">
             <table className="tbl">
               <caption className="sr-only">All metrics by control mode</caption>
               <thead>
@@ -126,7 +126,10 @@ export function SideBySide({ run, t, view }: { run: RunResponse; t: number; view
         return (
           <section key={m} className="card" aria-label={MODE_LABEL[m]}>
             <div className="card-h">
-              <h3 style={{ color: MODE_STYLE[m].color === "#6b7280" ? "var(--text)" : MODE_STYLE[m].color }}>{MODE_LABEL[m]}</h3>
+              <h3 className="row" style={{ gap: 6 }}>
+                <svg width="26" height="8" aria-hidden><line x1="0" x2="26" y1="4" y2="4" stroke={MODE_STYLE[m].color} strokeWidth="3" strokeDasharray={MODE_STYLE[m].dash} /></svg>
+                {MODE_LABEL[m]}
+              </h3>
               {evt && <span className="chip ev">{r.ev && r.ev.t_arrive !== null && t >= r.ev.t_arrive ? `EV ${evt.travel_time?.toFixed(0)} s` : ev ? `EV ${Math.round(ev.v * 3.6)} km/h` : "EV waiting"}</span>}
             </div>
             <div className="card-b">

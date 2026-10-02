@@ -141,15 +141,20 @@ class Simulation:
         # ---- priority vehicles --------------------------------------------------------------
         self.pvs: list[PriorityVehicle] = []
         self.ev: PriorityVehicle | None = None
+        init_events: list[dict] = []                 # recorded before self.events exists
         spec = scenario.dispatch if dispatch is True else (dispatch or None)
         if spec:
             self.add_ev(spec)
         for b in scenario.buses:                     # scheduled buses run regardless of the EV dispatch
-            self.add_bus(b)
+            if b.origin in net._bnd and b.destination in net._bnd:
+                self.add_bus(b)
+            else:                                    # library scenario used on a different network
+                init_events.append({"t": 0, "kind": "bus_skipped", "node": None, "severity": "info",
+                                    "text": f"{b.id} skipped: its route is not part of this network"})
 
         # ---- outputs ----------------------------------------------------------------------------
         self.frames: list[dict] = []
-        self.events: list[dict] = []
+        self.events: list[dict] = init_events
         self.decisions: list[dict] = []
         self.series: dict[str, list] = {k: [] for k in ("t", "queue", "backlog", "blocked", "arrived", "departed", "maxwait")}
         self.acc = {

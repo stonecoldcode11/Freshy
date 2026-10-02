@@ -40,7 +40,7 @@ export function Sidebar(p: Props) {
   const duration = p.overrides.duration ?? sc?.duration ?? 420;
   const levelName = intensity < 0.45 ? "light" : intensity < 0.75 ? "moderate" : "heavy";
   return (
-    <aside className="sidebar" aria-label="Simulation setup">
+    <aside className="sidebar" id="setup" aria-label="Simulation setup">
       <section className="card" aria-labelledby="scn-h">
         <div className="card-h"><h2 id="scn-h">1 · Scenario</h2></div>
         <div className="card-b stack">

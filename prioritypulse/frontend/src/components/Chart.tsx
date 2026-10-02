@@ -97,7 +97,7 @@ export function LineChart({ t, series, band, markers = [], shades = [], playhead
       </figcaption>
       <details style={{ marginTop: 6 }}>
         <summary className="small">View data table</summary>
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ overflowX: "auto" }} tabIndex={0} role="region" aria-label="Chart data table (scrollable)">
           <table className="tbl">
             <thead>
               <tr><th>Time (s)</th>{series.map((s) => <th key={s.id} className="num">{s.label}</th>)}</tr>

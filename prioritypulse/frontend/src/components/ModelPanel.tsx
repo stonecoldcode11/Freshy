@@ -104,7 +104,7 @@ export function ModelPanel({ run }: { run: RunResponse | null }) {
             {html.map((e) => (
               <article className="eqn-card" key={e.title}>
                 <div className="row"><span className="chip accent">{e.layer}</span><h3>{e.title}</h3></div>
-                {e.html.map((h, i) => <div className="eqn" key={i} dangerouslySetInnerHTML={{ __html: h }} />)}
+                {e.html.map((h, i) => <div className="eqn" key={i} tabIndex={0} role="group" aria-label="Equation (scrollable)" dangerouslySetInnerHTML={{ __html: h }} />)}
                 <p className="small muted">{e.note}</p>
               </article>
             ))}
@@ -120,7 +120,7 @@ export function ModelPanel({ run }: { run: RunResponse | null }) {
       {cfg && (
         <section className="card" aria-labelledby="par-h">
           <div className="card-h"><h2 id="par-h">Parameters used in this run</h2></div>
-          <div className="card-b" style={{ overflowX: "auto" }}>
+          <div className="card-b" style={{ overflowX: "auto" }} tabIndex={0} role="region" aria-label="Parameters (scrollable)">
             <table className="tbl">
               <caption className="sr-only">Controller weights and signal timing</caption>
               <tbody>

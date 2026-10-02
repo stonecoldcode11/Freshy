@@ -31,7 +31,7 @@ make backend          # API on :8000        (uvicorn --reload)
 make frontend         # UI on :5173         (Vite, proxies /api to :8000)
 ```
 
-Other targets: `make test` (pytest + vitest + typecheck), `make bench` (reproduce the results table).
+Other targets: `make test` (pytest + vitest + typecheck), `make bench` (reproduce the results table), `make fuzz`.
 
 Without `make`:
 
@@ -58,7 +58,7 @@ cd ../frontend && npm install && npm run dev
 | **Report & export** — outcome report, metrics / time-series / decision-log / event CSVs, JSON | *Report & export* tab |
 | **Transit priority** — late buses get a soft preference *below* the emergency vehicle | *Transit & school-bus priority* panel (school scenario) |
 | **Weather / incidents** — slower speeds and lower discharge; lane closures | Scenarios + *Conditions* |
-| **Accessibility** — keyboard shortcuts (press `?`), colour-blind-safe palette with icons/patterns, reduced motion, high contrast, dark theme, screen-reader announcements, a data table behind each line chart | Header |
+| **Accessibility** — phone layout (map first, "Setup" jump link), keyboard shortcuts (press `?`), colour-blind-safe palette with icons/patterns, reduced motion, high contrast, dark theme, screen-reader announcements, a data table behind each line chart | Header |
 | **Community / Engineer view** — plain language vs. queues, constraints and controller cost | Header (or press `V`) |
 
 ## How it works
@@ -161,7 +161,8 @@ prioritypulse/
 │   │   ├── controllers/       fixed.py · reactive.py · prioritypulse.py · mpc.py
 │   │   ├── network.py geo.py demand.py scenarios.py metrics.py report.py schemas.py config.py
 │   ├── scripts/benchmark.py   reproduces the results table
-│   └── tests/                 118 tests (physics, safety, controllers, API)
+│   ├── scripts/fuzz.py        random valid requests: no crash, safety 100%
+│   └── tests/                 127 tests (physics, safety, controllers, API, robustness)
 ├── frontend/src/              React + TypeScript (components/, lib/, api.ts, types.ts)
 ├── docs/screenshots/
 └── Makefile
@@ -187,6 +188,8 @@ make test
 ```
 
 - **Backend (pytest):** vehicle conservation every step, discharge ≤ saturation flow, start-up lost time, spillback guard, conflict matrix, signal legality, the safety monitor catching illegal logs, the trigger arithmetic `t_trigger = ETA − (T_clear + T_safe + T_buffer)` checked in every recorded frame, pedestrian-walk-never-overlaps-conflicting-green over whole runs, determinism, API validation.
+- **Robustness:** `scripts/fuzz.py` fires random valid requests (1–5 intersection map corridors at any bearing, random dispatch stations and times, weather, school zone, injected pedestrian calls) and checks for crashes, safety violations and frame-count errors; ~460 requests found two real bugs (both fixed), and a fixed-seed sample runs in the test suite. Vehicle conservation is also tested on corridors with 1, 2 and 5 intersections and different lane counts.
+- **Accessibility:** axe-core reports **zero violations** across 18 desktop page states (4 tabs × Community/Engineer × light/dark, plus the help and location dialogs) and 8 phone-width states, with no horizontal overflow at 360–1024 px. axe only catches a subset of problems and I have **not** tested with a real screen reader.
 - **Frontend (vitest + `tsc`):** heat scale, geometry, formatting, validation-error formatting. The UI was also exercised in headless Chromium (keyboard shortcuts, scenario switch, what-if pedestrian press, map-based network build, dark / high-contrast / reduced-motion).
 
 ## Limitations and honest notes

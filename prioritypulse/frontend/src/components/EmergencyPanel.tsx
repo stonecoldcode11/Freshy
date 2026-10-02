@@ -121,7 +121,7 @@ export function EmergencyPanel({ net, run, mode, frame, t, view }: Props) {
         )}
 
         {view === "engineer" ? (
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ overflowX: "auto" }} tabIndex={0} role="region" aria-label="Emergency route details (scrollable)">
             <table className="tbl">
               <caption className="sr-only">Emergency route, per intersection</caption>
               <thead>
