@@ -31,6 +31,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 PRIORITY_MULT = {"routine": 0.6, "urgent": 1.0, "critical": 1.5}
 PED_HARD_WAIT = 80.0            # a pedestrian call must be served within this many seconds
+DETOUR_ARRIVAL_MARGIN = 1.4     # inflate forecast arrivals when judging whether a detour leaves enough time
+DETOUR_EXTRA_VEH = 2.0          # ... plus a couple of vehicles of slack
 FAIR_MARGIN = 32.0              # start forcing service this long before the hard fairness cap (clearance + start-up)
 
 
@@ -358,14 +360,34 @@ class PriorityPulseController(Controller):
             for c in cands:
                 if c.kind == "switch" and c.target != ev_phase:
                     back = c.start + y + r + sg.g_min(c.target) + y + r   # earliest return to the EV phase
-                    if back > pl["eta_rel"] - pl["t_clear"] - pl["t_buffer"]:
-                        removed.append({"label": c.label, "why": "would leave too little time to restore the emergency phase"})
+                    # While the EV phase is red its queue keeps growing, so the clearance time after the
+                    # detour is longer than the clearance time now.
+                    # forecast + safety margin: surges arrive faster than the smoothed rate predicts, and a
+                    # wrong guess costs the emergency vehicle seconds but a cautious one costs side streets little
+                    grown = pl["queue"] + DETOUR_ARRIVAL_MARGIN * self._arrivals_within(ctx, pl["loc"], back, sim) + DETOUR_EXTRA_VEH
+                    ahead = max(0.0, grown - sim.cfg.emergency.ev_yield_threshold)
+                    clear_after = (sim.phys.tau_startup + ahead / pl["s_m"]) if ahead > 0 else 0.0
+                    if back + clear_after + pl["t_buffer"] > pl["eta_free"]:
+                        removed.append({"label": c.label, "why": (
+                            f"the emergency phase would be red for {back:.0f}s; the queue ahead (now {pl['queue']}) "
+                            f"would grow to ~{grown:.0f} and need ~{clear_after:.0f}s to clear, leaving too little "
+                            f"time before the vehicle arrives in {pl['eta_free']:.0f}s")})
                         continue
                 keep.append(c)
             cands = keep or [Candidate("hold", None, 10 ** 6, "Hold current green")]
         if not cands:
             cands = [Candidate("hold", None, 10 ** 6, "Hold current green")]
         return cands, removed, forced
+
+    @staticmethod
+    def _arrivals_within(ctx: dict[str, Any], loc: int, seconds: float, sim: "Simulation") -> float:
+        """Predicted vehicles joining movement ``loc`` in the next ``seconds`` (rate extended past the horizon)."""
+        A = ctx["A"][:, loc]
+        n = int(math.ceil(seconds))
+        total = float(A[: min(n, len(A))].sum())
+        if n > len(A):
+            total += float(A[-3:].mean()) * (n - len(A))
+        return total
 
     # ------------------------------------------------------------------ context for rollouts and explanations
     def _context(self, sim: "Simulation", ni: int, sg, t: int) -> dict[str, Any]:
@@ -451,7 +473,9 @@ class PriorityPulseController(Controller):
                     tracked.append(TrackedVehicle(loc, pl["eta_rel"], sim.cfg.emergency.ev_yield_threshold, wev, "ev",
                                                   ev.joined and ev.j == j_ev, ev.ahead if ev.joined else 0))
                 if pl["status"] == "pending" and not self.latched.get(j_ev):
-                    ev_pending = pl
+                    ev_pending = dict(pl)
+                    ev_pending["loc"] = loc
+                    ev_pending["s_m"] = max(0.05, float(s_eff[loc]))
         for pv in sim.pvs:
             if pv.kind != "bus" or pv.status == "done":
                 continue

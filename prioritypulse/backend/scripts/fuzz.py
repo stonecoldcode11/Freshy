@@ -64,6 +64,10 @@ def fuzz(seed: int, n_requests: int, verbose: bool = True) -> list[tuple]:
                     fails.append((i, "FRAMES", m, len(run["frames"]), req))
                 if mt["admitted"] < 0 or mt["avg_delay_s"] < 0 or mt["avg_delay_s"] != mt["avg_delay_s"]:
                     fails.append((i, "METRIC", m, mt["avg_delay_s"], req))
+        except ValueError as e:
+            if "is not on this network" in str(e):          # intended 422: scenario default doesn't fit this network
+                continue
+            fails.append((i, "EXC", "ValueError", str(e)[:150], req))
         except Exception as e:
             tb = traceback.format_exc().strip().splitlines()
             fails.append((i, "EXC", type(e).__name__, str(e)[:150] + " @ " + tb[-3].strip()[:120], req))

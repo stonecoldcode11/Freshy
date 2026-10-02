@@ -321,3 +321,40 @@ def test_transit_priority_is_explained_and_scenarios_without_a_bus_have_no_trans
     assert any(r["key"] == "bus_delay" for r in out["comparison"]["rows"])
     plain = execute(RunRequest(scenario_id="rush_hour_ambulance", seed=2, modes=("fixed", "prioritypulse"), include_frames=False))
     assert not any(r["key"] == "bus_delay" for r in plain["comparison"]["rows"])
+
+
+# ---------------------------------------------------------------------------------------------
+# detour rule: leaving the emergency phase must leave enough time to clear the queue that builds
+# ---------------------------------------------------------------------------------------------
+
+def _detour_targets(arrival_rate: float, eta_free: float = 31.0):
+    """Currently showing side-through green; only the side-left phase has waiting vehicles, so a detour
+    to phase 3 is the one candidate, and the emergency phase (0) would stay red for the whole detour."""
+    sim, sg = _ready_sim()
+    ni = 1
+    ctrl = sim.ctrl
+    sg.start_in(2, 20.0, 0)
+    for m in sim.net.movements_of("I2"):
+        if m.link == "SL2_in" and m.kind == "L":
+            sim.Q[m.idx] = 12
+    ctx = ctrl._context(sim, ni, sg, 0)
+    st = ctrl.statics[ni]
+    loc = st.mids.index(sim.net.movement("F1:T").idx)
+    ctx["A"][:, loc] = arrival_rate                    # forecast arrivals on the emergency movement
+    ctx["ev_pending"] = {"phase": 0, "eta_rel": eta_free, "eta_free": eta_free, "t_clear": 3.0, "t_buffer": 3.0,
+                         "queue": 3, "loc": loc, "s_m": 1.0}
+    cands, removed, forced = ctrl._candidates(sim, ni, sg, 0, ctx, None)
+    return {c.target for c in cands if c.kind == "switch" and c.target != 0}, removed
+
+
+def test_detour_is_refused_when_the_queue_would_grow_beyond_what_can_be_cleared():
+    allowed, removed = _detour_targets(arrival_rate=0.0)
+    assert allowed                                   # quiet approach: a short detour still leaves time
+    refused, removed = _detour_targets(arrival_rate=1.2)
+    assert not refused                               # surge: every detour would leave the vehicle waiting
+    assert any("would grow" in r["why"] for r in removed)
+
+
+def test_detour_is_refused_when_the_vehicle_is_close():
+    near, removed = _detour_targets(arrival_rate=0.0, eta_free=12.0)
+    assert not near
