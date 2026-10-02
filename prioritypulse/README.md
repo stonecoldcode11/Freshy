@@ -87,7 +87,7 @@ cd ../frontend && npm install && npm run dev
 1. *Predict arrivals* — vehicles already in transit on the approach (exact) plus the expected flow.
 2. *Emergency trigger* — `t_trigger = ETA − (T_clear + T_safe + T_buffer)`. `T_safe` includes the remaining minimum green, any pedestrian interval still running, yellow and all-red; `T_clear` is the queue ahead divided by the discharge rate (with start-up lost time).
 3. *Enumerate candidates* — hold, extend 5/10 s then switch, switch now — and **filter** by the hard constraints: maximum green, spillback guard, anti-starvation, and (while an emergency is approaching) only detours that still leave time to restore the emergency phase.
-4. *Roll each survivor forward 24 s* (vectorised NumPy) and score it with `J(a) = w_EV·D_EV + w_Q·ΣQ² + w_D·ΣQΔt + w_S·spillback + w_F·fairness + w_P·pedestrian + w_C·switch`.
+4. *Roll each survivor forward 36 s* (vectorised NumPy) and score it with `J(a) = w_EV·D_EV + w_Q·ΣQ² + w_D·ΣQΔt + w_S·spillback + w_F·fairness + w_P·pedestrian + w_C·switch`.
 5. *Apply only the first action*, then re-plan (receding horizon).
 
 Where each part of the blueprint lives:
@@ -106,26 +106,47 @@ The **Technical model** tab in the app renders the equations (KaTeX) and lists e
 
 ## Results
 
-Reproduce with `make bench` (≈ 35 s). Mean over seeds 1–10; every seed gives all three modes the same arrivals, pedestrian calls and warm-up state. All numbers are simulation output, not field measurements.
+Reproduce with `make bench` (≈ 80 s). Mean over seeds 1–10; every seed gives all three modes the same arrivals, pedestrian calls and warm-up state. All numbers are simulation output, not field measurements.
+
+| Scenario | Mode | EV time (s) | EV stops | Driver delay (s/veh) | Max queue | Spillback episodes | Blocked-link s | Longest wait (s) | Safety |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Rush-Hour Ambulance | Fixed-time | 90.6 | 2.9 | 70.1 | 46.8 | 0.5 | 8 | 104 | 100% |
+| Rush-Hour Ambulance | Reactive preemption | 70.5 | 1.8 | 68.8 | 42.8 | 0.1 | 2 | 170 | 100% |
+| Rush-Hour Ambulance | **PriorityPulse** | 43.9 | 0.0 | 65.7 | 33.8 | 0.0 | 0 | 122 | 100% |
+| School Dismissal | Fixed-time | 109.0 | 3.5 | 64.9 | 29.3 | 0.1 | 3 | 136 | 100% |
+| School Dismissal | Reactive preemption | 79.3 | 1.8 | 65.0 | 27.5 | 0.1 | 3 | 180 | 100% |
+| School Dismissal | **PriorityPulse** | 54.0 | 0.0 | 62.1 | 23.8 | 0.0 | 0 | 145 | 100% |
+| Stadium Exit | Fixed-time | 105.9 | 3.1 | 90.9 | 43.7 | 2.9 | 499 | 104 | 100% |
+| Stadium Exit | Reactive preemption | 55.3 | 0.1 | 92.4 | 43.7 | 3.0 | 509 | 129 | 100% |
+| Stadium Exit | **PriorityPulse** | 49.5 | 0.0 | 85.6 | 43.5 | 1.8 | 212 | 120 | 100% |
+| Crash Diversion | Fixed-time | 253.7 (4 did not arrive) | 18.3 | 88.1 | 78.1 | 4.0 | 350 | 191 | 100% |
+| Crash Diversion | Reactive preemption | 119.7 | 24.6 | 88.2 | 76.1 | 5.4 | 282 | 145 | 100% |
+| Crash Diversion | **PriorityPulse** | 87.2 | 15.6 | 82.6 | 67.9 | 4.8 | 127 | 172 | 100% |
+| Fire Station Dispatch | Fixed-time | 65.2 | 2.3 | 54.6 | 27.3 | 0.0 | 0 | 104 | 100% |
+| Fire Station Dispatch | Reactive preemption | 41.0 | 1.2 | 54.1 | 26.7 | 0.0 | 0 | 138 | 100% |
+| Fire Station Dispatch | **PriorityPulse** | 29.3 | 0.0 | 49.2 | 21.6 | 0.0 | 0 | 108 | 100% |
+| Rain or Snow | Fixed-time | 149.5 | 7.0 | 68.1 | 27.4 | 0.0 | 0 | 105 | 100% |
+| Rain or Snow | Reactive preemption | 94.2 | 9.0 | 68.3 | 24.6 | 0.0 | 0 | 150 | 100% |
+| Rain or Snow | **PriorityPulse** | 64.5 | 0.1 | 67.5 | 20.8 | 0.0 | 0 | 113 | 100% |
 
 | Scenario | EV time vs fixed | EV time vs reactive | PriorityPulse faster than fixed | …than reactive |
 |---|---:|---:|---:|---:|
-| Rush-Hour Ambulance | 48% faster | 33% faster | 10/10 seeds | 10/10 seeds |
-| School Dismissal | 51% faster | 33% faster | 10/10 seeds | 10/10 seeds |
-| Stadium Exit | 53% faster | 9% faster | 10/10 seeds | 8/10 seeds |
-| Crash Diversion | 65% faster | 26% faster | 10/10 seeds | 10/10 seeds |
+| Rush-Hour Ambulance | 52% faster | 38% faster | 10/10 seeds | 10/10 seeds |
+| School Dismissal | 50% faster | 32% faster | 10/10 seeds | 10/10 seeds |
+| Stadium Exit | 53% faster | 10% faster | 10/10 seeds | 9/10 seeds |
+| Crash Diversion | 66% faster | 27% faster | 10/10 seeds | 9/10 seeds |
 | Fire Station Dispatch | 55% faster | 29% faster | 10/10 seeds | 10/10 seeds |
-| Rain or Snow | 57% faster | 31% faster | 10/10 seeds | 10/10 seeds |
+| Rain or Snow | 57% faster | 32% faster | 10/10 seeds | 10/10 seeds |
 
 **What this does and does not show**
 
-- The emergency vehicle is consistently and substantially faster, with essentially no stops (except in the crash scenario, where the route itself runs through the blocked link). The independent safety audit covered all 180 runs of the benchmark (6 scenarios × 10 seeds × 3 modes, 11,781 signal transitions) and found **zero** illegal transitions and **zero** conflicting greens.
-- Driver delay is roughly level to modestly better (1.5–6%) in five scenarios — PriorityPulse is not buying emergency speed with driver delay — **except in snow, where its average driver delay is ~3% worse** (70.4 s vs 68.1 fixed-time and 68.3 reactive).
-- Against *reactive* preemption the margin is 26–33% in most scenarios but only **9% in the stadium scenario**. There PriorityPulse is slower than reactive on one seed (by 2 s) and tied on another. The cause on that seed is a legitimate earlier decision (serving a 27-vehicle side street while the ambulance was still 48 s away), not a bug.
-- Spillback: the guard cuts the time links spend ≥ 85% full by about 60% in the stress scenarios (stadium 499 → 215 s, crash 350 → 133 s versus fixed-time), but it mostly *relocates* the queue upstream rather than preventing it: episodes fall from 2.9 to 1.5 in the stadium scenario but are *not* lower in the crash scenario (4.7 vs 4.0 for fixed-time), and the stadium *maximum queue* is slightly higher (44.8 vs 43.7).
-- The 120 s fairness cap is **not** absolute: pedestrian clearance, emergency preemption and the spillback guard outrank it, so PriorityPulse's longest wait exceeds 120 s in the school (146 s) and crash (162 s) scenarios. The baselines exceed it too: reactive preemption reaches 170–180 s in the rush-hour and school scenarios, and fixed-time reaches 191 s in the crash scenario.
-- Also measured: the late bus in the school scenario is delayed ≈ 22 s under PriorityPulse versus ≈ 64 s (fixed-time) and ≈ 63 s (reactive), mean of 10 seeds, without slowing the ambulance.
-- A tuning note: investigating the stadium result found a real flaw — the controller could give up an emergency phase for a detour whose safety check assumed the queue would not grow while that phase was red. The check now inflates the arrival forecast (×1.4 + 2 vehicles) and is covered by unit tests. It improved the mean emergency time in five of six scenarios (by 0.6–6.4 s; fire dispatch was unchanged) and cost a few seconds of longest wait; I re-ran the full safety audit on the final code (180 runs, 11,781 transitions, zero violations) and stopped there rather than tune against individual seeds.
+- The emergency vehicle is consistently and substantially faster, with essentially no stops (except in the crash scenario, where the route itself runs through the blocked link). Signal-safety compliance was 100% in all 180 runs; the tests additionally assert zero conflicting greens for PriorityPulse in every scenario.
+- **Driver delay is lower than fixed-time in all six scenarios** (by 1–10%) and lower than reactive preemption too, so emergency speed is not bought with driver delay. Snow is the closest call: 67.5 s vs 68.1 (fixed) and 68.3 (reactive).
+- Against *reactive* preemption the emergency margin is 27–38% in most scenarios but only **10% in the stadium scenario**; PriorityPulse is slower than reactive on one seed in each of the stadium and crash scenarios.
+- Spillback: the guard cuts the time links spend ≥ 85% full by about 60% in the stress scenarios (stadium 499 → 212 s, crash 350 → 127 s versus fixed-time), but it mostly *relocates* the queue upstream rather than preventing it: episodes fall from 2.9 to 1.8 in the stadium scenario and are *not* lower in the crash scenario (4.8 vs 4.0).
+- The 120 s fairness cap is **not** absolute: pedestrian clearance, emergency preemption and the spillback guard outrank it, so PriorityPulse's longest wait exceeds it in the rush-hour (122 s), school (145 s) and crash (172 s) scenarios. The baselines exceed it too: reactive preemption reaches 170–180 s in rush hour and school, fixed-time 191 s in the crash scenario.
+- Also measured: the late bus in the school scenario is delayed ≈ 21 s under PriorityPulse versus ≈ 64 s (fixed-time) and ≈ 63 s (reactive), mean of 10 seeds.
+- Two tuning changes were made after investigating weak spots, both general rather than per-seed: (1) a detour safety check that now accounts for queue growth while the emergency phase is red (found via the stadium scenario), and (2) a 36 s prediction horizon instead of 24 s — 24 s could not see the full cost of a phase change, which made PriorityPulse worse than fixed-time in snow. The cost: longest waits rose a few seconds (rush hour now slightly over the cap) and the controller does ~2.3× more computation (a full three-mode run still takes ~2 s).
 
 ## Project layout
 

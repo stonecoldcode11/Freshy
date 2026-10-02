@@ -9,6 +9,7 @@ Each (scenario, seed) shares one demand table, so the three modes see identical 
 from __future__ import annotations
 
 import argparse
+import json
 import statistics as st
 import sys
 from pathlib import Path
@@ -44,10 +45,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", default="1-10")
     ap.add_argument("--scenarios", default=",".join(SCENARIOS))
+    ap.add_argument("--weights", default="", help='JSON controller-weight overrides, e.g. \'{"horizon": 36}\'')
     args = ap.parse_args()
     seeds = parse_seeds(args.seeds)
+    weights = json.loads(args.weights) if args.weights else None
     scenarios = args.scenarios.split(",")
 
+    if weights:
+        print(f"Controller weight overrides: {weights}\n")
     print(f"Mean over {len(seeds)} seeds ({seeds[0]}..{seeds[-1]}); identical arrivals per seed across modes. An emergency vehicle that has not arrived by the end of the run is counted at its travel time so far (a lower bound).\n")
     print("| Scenario | Mode | EV time (s) | EV stops | Driver delay (s/veh) | Max queue | Spillback episodes | Blocked-link s | Longest wait (s) | Safety |")
     print("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|")
@@ -57,7 +62,7 @@ def main() -> None:
         rows: dict[str, list[dict]] = {m: [] for m in MODES}
         caps: list[float] = []
         for seed in seeds:
-            out = execute(RunRequest(scenario_id=sc, seed=seed, include_frames=False))
+            out = execute(RunRequest(scenario_id=sc, seed=seed, include_frames=False, weights=weights))
             caps.append(out["duration"] - out["dispatch"]["t"])
             for m in MODES:
                 rows[m].append(out["runs"][m]["metrics"])

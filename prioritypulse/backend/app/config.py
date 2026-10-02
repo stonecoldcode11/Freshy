@@ -78,7 +78,7 @@ class ControlWeights:
     w_c: float = 6.0                   # phase-change penalty
     w_p: float = 8.0                   # pedestrian wait penalty
     w_t: float = 20.0                  # transit benefit
-    horizon: int = 24                  # H, seconds
+    horizon: int = 36                  # H, seconds (24 s was too short to see the full cost of a phase change)
     eta: float = 3.0                   # spillback exponent
     t_fair: float = 60.0               # soft fairness threshold, s
     t_max_allowed: float = 120.0       # hard fairness cap, s
